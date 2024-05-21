@@ -1,0 +1,8 @@
+database:
+  host: db_ip
+  port: db_port
+  user: db_username
+  name: db_name
+
+feed_handler:
+  feed_url: wss://example.com/feed

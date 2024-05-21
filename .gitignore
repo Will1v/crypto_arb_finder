@@ -1,0 +1,3 @@
+# Ignore actual secrets and config files
+config/secrets.env
+config/config.yml
