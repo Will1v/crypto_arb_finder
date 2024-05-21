@@ -6,7 +6,15 @@
 - [ ] Feed handler
 - [ ] Web GUI
 
-## Configuration Setup
+# Getting started
+## Installing required modules
+
+Ensure `pip` is installed, then run:
+``` sh
+pip install -r requirements.txt
+```
+
+## Configuration files
 
 1. Copy the template files to create your actual configuration files:
 
