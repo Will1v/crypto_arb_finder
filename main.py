@@ -11,7 +11,7 @@ with open('config/config.yml', 'r') as file:
 
 # Import modules
 from feed_handler.feed_handler import FeedHandler
-from database.db_manager import DatabaseManager
+# from database.db_manager import DatabaseManager
 from web_gui.app import start_web_gui
 
 def main():
@@ -19,16 +19,17 @@ def main():
     cc_api_key = os.getenv('CRYPTOCOMPARE_API_KEY')
     db_password = os.getenv('DB_PASSWORD')
     
-    # Initialize database
-    db_config = config['database']
-    database = DatabaseManager(db_config['host'], db_config['port'], db_config['name'], db_password)
+    ## Initialize database
+    #db_config = config['database']
+    #database = DatabaseManager(db_config['host'], db_config['port'], db_config['name'], db_password)
     
     # Initialize feed handler
     feed_config = config['feed_handler']
     feed_handler = FeedHandler(feed_config['feed_url'], cc_api_key)
+    feed_handler.pull_live_data('BTC', 'USD')
     
     # Start web GUI
-    start_web_gui()
+    #start_web_gui()
 
 if __name__ == "__main__":
     main()
