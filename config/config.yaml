@@ -1,0 +1,9 @@
+database:
+  host: localhost
+  port: 5432
+  user: will1v
+  name: mydatabase
+
+feed_handler:
+  feed_url: wss://streamer.cryptocompare.com/v2
+  exchange_list_url: https://min-api.cryptocompare.com/data/ob/exchanges
