@@ -32,3 +32,11 @@ pip install -r requirements.txt
     * config.yml
     TODO
 
+## Python Path
+
+Ensure the directory in which the code lives is in your Python Path.
+For example, add:
+``` sh
+export PYTHONPATH="<path/to/project>"
+```
+to your `.bash_profile`
