@@ -40,3 +40,12 @@ For example, add:
 export PYTHONPATH="<path/to/project>"
 ```
 to your `.bash_profile`
+
+## Database
+
+Ensure you have at least a placeholder file for the sqlite3 database.
+For example, run:
+``` sh
+touch database/crypto_arb_finder.sqlite3
+```
+(NB: make sure this matches what you've defined in `config/config.yaml`)
