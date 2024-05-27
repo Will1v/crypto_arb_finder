@@ -1,7 +1,6 @@
 database:
-  host: localhost
-  port: 5432
-  user: will1v
+  file_path: "~/crypto_arb_finder/database/crypto_arb_finder.sqlite3"
+  build_sql_file_path: "~/crypto_arb_finder/database/build_database.sql"
   name: mydatabase
 
 feed_handler:
