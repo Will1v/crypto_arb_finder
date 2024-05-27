@@ -4,6 +4,10 @@
    - [x] Decide on crypto API:  <a href="https://min-api.cryptocompare.com/" target="_blank">Crypto Compare</a>
    - [x] Decide on database: sqlite3
 - [ ] Feed handler
+   - [ ] Store market data to DB
+      - [x] For one exchange
+      - [ ] For multiple exchanges
+   - [ ] Spot arbitrage opportunities
 - [ ] Web GUI
 
 # Getting started
