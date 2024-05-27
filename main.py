@@ -25,7 +25,7 @@ def main():
     for exchange in exchanges_to_monitor:
         for ccy_1, ccy_2 in pairs_to_monitor:
             feed_handler = FeedHandler(ccy_1, ccy_2, exchange)
-            feed_handler.start()
+            feed_handler.start_fh()
 
     # Start web GUI
     # start_web_gui()

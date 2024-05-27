@@ -26,7 +26,6 @@ def get_db_connection():
     db_file = os.path.expanduser(config.database.file_path)
     try:
         conn = sqlite3.connect(db_file)
-        logger.info(f"Connected to SQLite database: {db_file}")
         return conn
     except sqlite3.Error as e:
         logger.exception(f"Error connecting to database: {e}")

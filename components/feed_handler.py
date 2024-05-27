@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 fh_config = config.feed_handler
 
 
-class FeedHandler(threading.Thread):
+class FeedHandler:
 
     exchanges = []
 
@@ -48,17 +48,6 @@ class FeedHandler(threading.Thread):
         self.socket_id = ""
         self.unknown_ws_types = set()
 
-        # Multithreading management
-        threading.Thread.__init__(self)
-        time.sleep(5)
-
-        self.lock = threading.Lock()
-        logger.debug("FH self.lock acquired")
-        time.sleep(4)
-        self.running = True
-        logger.debug("FH self.running = True")
-        time.sleep(3)
-
     def on_message(self, ws, message):
         data = json.loads(message)
         type = data["TYPE"]
@@ -70,21 +59,18 @@ class FeedHandler(threading.Thread):
             assert data["M"] in self.exchanges
             assert data["FSYM"] == self.ccy_1
             assert data["TSYM"] == self.ccy_2
-            with self.lock:
-                if "BID" in data.keys():
-                    logger.debug("BID found")
-                    self.order_book.set_bid(
-                        float(data["BID"][0]["P"]),
-                        float(data["BID"][0]["Q"]),
-                        datetime.fromtimestamp(int(data["BID"][0]["REPORTEDNS"]) / 1e9),
-                    )
-                if "ASK" in data.keys():
-                    logger.debug("ASK found")
-                    self.order_book.set_ask(
-                        float(data["ASK"][0]["P"]),
-                        float(data["ASK"][0]["Q"]),
-                        datetime.fromtimestamp(int(data["ASK"][0]["REPORTEDNS"]) / 1e9),
-                    )
+            if "BID" in data.keys():
+                self.order_book.set_bid(
+                    float(data["BID"][0]["P"]),
+                    float(data["BID"][0]["Q"]),
+                    datetime.fromtimestamp(int(data["BID"][0]["REPORTEDNS"]) / 1e9),
+                )
+            if "ASK" in data.keys():
+                self.order_book.set_ask(
+                    float(data["ASK"][0]["P"]),
+                    float(data["ASK"][0]["Q"]),
+                    datetime.fromtimestamp(int(data["ASK"][0]["REPORTEDNS"]) / 1e9),
+                )
         elif type not in self.unknown_ws_types:
             self.unknown_ws_types.add(type)
 
@@ -104,26 +90,33 @@ class FeedHandler(threading.Thread):
         logger.debug(f"Opening WS with: {subscription_message}")
         ws.send(json.dumps(subscription_message))
 
-    def start(self):
+    def start_fh(self):
+        logger.debug("Entering FH run")
         ws_url = f"{self.feed_url}?api_key={self.cc_api_key}"
 
-        # Initialize the WebSocket
-        try:
-            websocket.enableTrace(True)
-            ws = websocket.WebSocketApp(
-                ws_url,
-                on_open=self.on_open,
-                on_message=self.on_message,
-                on_error=self.on_error,
-                on_close=self.on_close,
-            )
-            logger.debug("ws built...")
-            time.sleep(3)
-            # Run the WebSocket
-            logger.debug("starting ws.run_forever() now...")
-            ws.run_forever()
+        def run_fh_ws():
+            # Initialize the WebSocket
+            try:
+                # websocket.enableTrace(True)
+                ws = websocket.WebSocketApp(
+                    ws_url,
+                    on_open=self.on_open,
+                    on_message=self.on_message,
+                    on_error=self.on_error,
+                    on_close=self.on_close,
+                )
+                # Run the WebSocket
+                logger.debug("starting ws.run_forever() now...")
+                ws.run_forever()
+            except Exception as e:
+                logger.exception(f"Exception occurred: {e}")
+                if ws:
+                    ws.close()
 
-        except Exception as e:
-            logger.exception(f"Exception occurred: {e}")
-            if ws:
-                ws.close()
+        fh_ws_thread = threading.Thread(target=run_fh_ws)
+        logger.debug(f"Starting FH WS thread now... (FH: {self})")
+        fh_ws_thread.start()
+
+    # Dunder methods...
+    def __str__(self):
+        return f"[FeedHandler] {self.exchange}: {self.ccy_1}/{self.ccy_2}"
