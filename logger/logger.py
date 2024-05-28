@@ -9,7 +9,7 @@ def configure_logger():
     log_format = "%(asctime)s [%(levelname)s] - %(message)s - %(filename)s:%(lineno)d"
     log_file_timestamp = datetime.now().strftime("%Y%m%d")
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG,
         format=log_format,
         datefmt="%Y-%m-%d %H:%M:%S",
         handlers=[
