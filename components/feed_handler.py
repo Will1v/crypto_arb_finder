@@ -47,6 +47,7 @@ class FeedHandler:
         # Technical variables:
         self.socket_id = ""
         self.unknown_ws_types = set()
+        self.reconnect_attempts = 3
 
     def on_message(self, ws, message):
         data = json.loads(message)

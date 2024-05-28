@@ -1,4 +1,4 @@
-import os, sys
+import os, sys, time
 from dotenv import load_dotenv
 import yaml
 from config import config, passwords
@@ -15,7 +15,7 @@ def main():
     ## Initialize database
     db_helper.init_db()
 
-    exchanges_to_monitor = ["Coinbase"]  # ["Binance", "Coinbase"]
+    exchanges_to_monitor = ["Coinbase", "Binance"]  # ['Coinbase']
     pairs_to_monitor = [
         ("BTC", "USD")
     ]  # [("BTC", "ETH"), ("BTC", "USD"), ("BTC", "GBP")]
@@ -26,6 +26,7 @@ def main():
         for ccy_1, ccy_2 in pairs_to_monitor:
             feed_handler = FeedHandler(ccy_1, ccy_2, exchange)
             feed_handler.start_fh()
+            time.sleep(5)
 
     # Start web GUI
     # start_web_gui()
