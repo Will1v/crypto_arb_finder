@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 import yaml
 from config import config, passwords
 from logger import get_logger
-from crypto_arb_finder.components.feed_handler import FeedHandler
+from feed_handlers import FeedHandler
 from web_gui.app import start_web_gui
 from database import db_helper
 

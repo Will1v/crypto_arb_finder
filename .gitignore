@@ -2,6 +2,12 @@
 config/secrets.env
 config/config.yml
 
+# Ignore all .env files
+*.env
+# Allow the one template
+!config/secrets_template.env
+
+
 # Python 
 __pycache__/
 *.pyc

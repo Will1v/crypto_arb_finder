@@ -10,6 +10,7 @@ class Passwords:
         load_dotenv("config/secrets.env")
         self.cryptocompare_api_key = os.getenv("CRYPTOCOMPARE_API_KEY")
         self.db_password = os.getenv("DB_PASSWORD")
+        self.coinbase_secret = os.getend("COINBASE_SECRET")
 
 
 class NestedConfig:
