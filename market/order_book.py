@@ -4,7 +4,7 @@ from database import db_helper
 import time
 import threading
 import queue
-
+from typing import Optional
 
 logger = get_logger(__name__)
 
@@ -53,24 +53,7 @@ class OrderBook(threading.Thread):
         return self._bid_q
 
     def set_bid(self, bid: float, bid_q: float, event_time: datetime):
-        with self.lock:
-            if bid >= self._ask:
-                logger.warn(f"WARNING: setting bid to {bid} (>= ask {self._ask})")
-            if bid < 0:
-                logger.error(f"ERROR: can't have a negative bid")
-            if bid_q < 0:
-                logger.error(f"BidQ: {bid_q} is invalid (should be >=)")
-            self._bid = bid
-            self._bid_q = bid_q
-            self._bid_ask_history.append(
-                {
-                    "event_time": event_time,
-                    "bid_q": self._bid_q,
-                    "bid": self._bid,
-                    "ask": self._ask,
-                    "ask_q": self._ask_q,
-                }
-            )
+        self.set_bid_ask(bid=bid, bid_q=bid_q, event_time=event_time)
 
     @property
     def ask(self):
@@ -81,15 +64,35 @@ class OrderBook(threading.Thread):
         return self._ask_q
 
     def set_ask(self, ask: float, ask_q: float, event_time: datetime):
+        self.set_bid_ask(ask=ask, ask_q=ask_q, event_time=event_time)
+
+    def set_bid_ask(
+        self,
+        bid: Optional[float],
+        bid_q: Optional[float],
+        ask: Optional[float],
+        ask_q: Optional[float],
+        event_time: datetime,
+    ):
         with self.lock:
-            if ask <= self._bid:
-                logger.warn(f"WARNING: setting ask to {ask} (<= bid {self._bid})")
-            if ask < 0:
-                logger.error(f"ERROR: can't have a negative ask")
-            if ask_q < 0:
-                logger.error(f"AskQ: {ask_q} is invalid (should be >=)")
-            self._ask = ask
-            self._ask_q = ask_q
+            if bid:
+                if bid >= self._ask:
+                    logger.warn(f"Setting bid to {bid} (>= ask {self._ask})")
+                if bid < 0:
+                    logger.error(f"Can't have a negative bid")
+                if bid_q < 0:
+                    logger.error(f"BidQ: {bid_q} is invalid (should be >=)")
+                self._bid = bid
+                self._bid_q = bid_q
+            if ask:
+                if ask <= self._bid:
+                    logger.warn(f"WARNING: setting ask to {ask} (<= bid {self._bid})")
+                if ask < 0:
+                    logger.error(f"ERROR: can't have a negative ask")
+                if ask_q < 0:
+                    logger.error(f"AskQ: {ask_q} is invalid (should be >=)")
+                self._ask = ask
+                self._ask_q = ask_q
             self._bid_ask_history.append(
                 {
                     "event_time": event_time,
