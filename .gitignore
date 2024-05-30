@@ -1,10 +1,8 @@
-# Ignore actual secrets and config files
-config/secrets.env
+# Ignore actual config files
 config/config.yml
 
-# Ignore all .env files
+# Ignore all .env files except the template secrets file
 *.env
-# Allow the one template
 !config/secrets_template.env
 
 
