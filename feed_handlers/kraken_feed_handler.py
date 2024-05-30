@@ -2,26 +2,19 @@ from feed_handlers import FeedHandler
 from config import config, secrets
 from market import OrderBook
 from logger import get_logger
-import asyncio
-import base64
-import hashlib
-import hmac
 import json
-import os
-import time
-import websockets
+import threading
+import websocket
 from datetime import datetime
 
 logger = get_logger(__name__)
 
 
-class CoinbaseFeedHandler(FeedHandler):
+class KrakenFeedHandler(FeedHandler):
 
     def __init__(self, ccy_1: str, ccy_2: str, exchange: str):
         super().__init__(ccy_1=ccy_1, ccy_2=ccy_2, exchange=exchange)
-        self.feed_uri = config.feed_handler.coinbase_wss
-        self.api_key = secrets.coinbase_api_key
-        self.secret_key = secrets.coinbase_secret
+        self.feed_uri = config.feed_handler.kraken_wss
         self.ccy_1 = ccy_1
         self.ccy_2 = ccy_2
         self.exchange = exchange
@@ -34,7 +27,32 @@ class CoinbaseFeedHandler(FeedHandler):
         self.reconnect_attempts = 3
 
     def on_message(self, ws, message):
-        data = json.loads(message)
+        try:
+            response = json.loads(message)
+            if (
+                response.get("channel") == "ticker"
+                and response.get("type") == "update"
+                and "data" in response
+            ):
+                data = response["data"][0]
+                logger.debug(f"Received update message: {response}")
+                assert (
+                    data["symbol"] == f"{self.ccy_1}/{self.ccy_2}"
+                ), f"response[data][symbol] = {data['symbol']} which does not match self.ccy_1/self.ccy_2 = {self.ccy_1}/{self.ccy_2}"
+                # Note: Kraken's API isn't great in that it doesn't provide a timestamp for the update. This means we could have inacurate timestamps if the program starts lagging...
+                self.order_book.set_bid_ask(
+                    data["bid"],
+                    data["bid_qty"],
+                    data["ask"],
+                    data["ask_qty"],
+                    datetime.now(),
+                )
+            else:
+                logger.debug(f"Received non data message: {response}")
+
+        except Exception as e:
+            logger.exception(f"Error processing message: {e}")
+
         """
         type = data["TYPE"]
         # TODO: migrate to Python 3.10 to use switch case (match)
@@ -71,20 +89,20 @@ class CoinbaseFeedHandler(FeedHandler):
     def on_open(self, ws):
         # Subscribe to the desired channels
         subscription_message = {
-            "type": "subscribe",
-            "product_ids": ["ETH-USD", "ETH-EUR"],
-            "channels": [
-                "level2",
-                "heartbeat",
-                {"name": "ticker", "product_ids": ["ETH-BTC", "ETH-USD"]},
-            ],
+            "method": "subscribe",
+            "params": {
+                "channel": "ticker",
+                "symbol": [f"{self.ccy_1}/{self.ccy_2}"],
+                "event_trigger": "bbo",
+                "snapshot": False,
+            },
         }
         logger.debug(f"Opening WS with: {subscription_message}")
         ws.send(json.dumps(subscription_message))
 
     def start_fh(self):
         logger.debug("Entering FH run")
-        ws_url = f"{self.feed_uri}?api_key={self.cc_api_key}"
+        ws_url = f"{self.feed_uri}"
 
         def run_fh_ws():
             # Initialize the WebSocket
