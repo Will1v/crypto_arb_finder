@@ -4,13 +4,13 @@ import yaml
 from typing import Any, Dict
 
 
-class Passwords:
+class Secrets:
     def __init__(self):
         # Load environment variables from the .env file
         load_dotenv("config/secrets.env")
         self.cryptocompare_api_key = os.getenv("CRYPTOCOMPARE_API_KEY")
         self.db_password = os.getenv("DB_PASSWORD")
-        self.coinbase_secret = os.getend("COINBASE_SECRET")
+        self.coinbase_secret = os.getenv("COINBASE_SECRET")
 
 
 class NestedConfig:
@@ -49,5 +49,5 @@ class Config:
 
 
 # Load the configuration when the module is imported
-passwords = Passwords()
+secrets = Secrets()
 config = Config("config/config.yaml")
