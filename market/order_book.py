@@ -102,6 +102,7 @@ class OrderBook(threading.Thread):
                     "ask_q": self._ask_q,
                 }
             )
+            logger.info(f"New tick: {self}")
 
     # This fills the queue of updates to dump in DB every 1 second
     def periodic_insertion(self):
@@ -110,13 +111,12 @@ class OrderBook(threading.Thread):
         )
         while self.running:
             try:
-                time.sleep(1)
+                time.sleep(20)
                 with self.lock:
                     # Put data in queue
                     logger.debug(f"Adding {len(self._bid_ask_history)} to queue")
                     [self.db_queue.put(entry) for entry in self._bid_ask_history]
                     self._bid_ask_history.clear()
-                    logger.debug(f"queue now size: {len(self._bid_ask_history)}")
             except Exception as e:
                 logger.error(f"Error in periodic_insertion: {e}")
                 break
@@ -132,11 +132,10 @@ class OrderBook(threading.Thread):
                 while not self.db_queue.empty():
                     data_batch.append(self.db_queue.get())
             self.flush_to_db(data_batch)
-            time.sleep(1)
+            time.sleep(60)
 
     # This builds the insert query and inserts into DB
     def flush_to_db(self, data_batch):
-        logger.debug(f"flush_to_db called (data_batch size {len(data_batch)})")
         if data_batch:
             db_conn = db_helper.get_db_connection()
             insert_query = f"INSERT INTO order_book (timestamp, currency_1, currency_2, bid_q, bid, ask, ask_q, exchange) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
@@ -162,4 +161,4 @@ class OrderBook(threading.Thread):
 
     # Dunder methods...
     def __str__(self):
-        return f"[OrderBook] {self.exchange}: {self._ccy_1}/{self._ccy_2}"
+        return f"[OrderBook] [{self.exchange}:{self._ccy_1}/{self._ccy_2}] {self.bid_q}@{self.bid} / {self.ask_q}@{self.ask}"

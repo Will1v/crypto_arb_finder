@@ -35,7 +35,6 @@ class KrakenFeedHandler(FeedHandler):
                 and "data" in response
             ):
                 data = response["data"][0]
-                logger.debug(f"Received update message: {response}")
                 assert (
                     data["symbol"] == f"{self.ccy_1}/{self.ccy_2}"
                 ), f"response[data][symbol] = {data['symbol']} which does not match self.ccy_1/self.ccy_2 = {self.ccy_1}/{self.ccy_2}"
@@ -52,32 +51,6 @@ class KrakenFeedHandler(FeedHandler):
 
         except Exception as e:
             logger.exception(f"Error processing message: {e}")
-
-        """
-        type = data["TYPE"]
-        # TODO: migrate to Python 3.10 to use switch case (match)
-        if type == "20":
-            self.socket_id = data["SOCKET_ID"]
-        elif type == "30":  # Order book update
-            # TODO: are these asserts overkill?
-            assert data["M"] in self.exchanges
-            assert data["FSYM"] == self.ccy_1
-            assert data["TSYM"] == self.ccy_2
-            if "BID" in data.keys():
-                self.order_book.set_bid(
-                    float(data["BID"][0]["P"]),
-                    float(data["BID"][0]["Q"]),
-                    datetime.fromtimestamp(int(data["BID"][0]["REPORTEDNS"]) / 1e9),
-                )
-            if "ASK" in data.keys():
-                self.order_book.set_ask(
-                    float(data["ASK"][0]["P"]),
-                    float(data["ASK"][0]["Q"]),
-                    datetime.fromtimestamp(int(data["ASK"][0]["REPORTEDNS"]) / 1e9),
-                )
-        elif type not in self.unknown_ws_types:
-            self.unknown_ws_types.add(type)
-            """
 
     def on_error(self, ws, error):
         logger.error(f"WebSocket error: {error}")
