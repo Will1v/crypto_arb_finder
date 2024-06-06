@@ -7,6 +7,9 @@
    - [ ] Store market data to DB
       - [x] For one exchange
       - [ ] For multiple exchanges
+         - [x] Kraken
+         - [x] Coinbase
+         - [ ] Cex.io
    - [ ] Spot arbitrage opportunities
 - [ ] Web GUI
 
