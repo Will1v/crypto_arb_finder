@@ -6,6 +6,8 @@ database:
 feed_handler:
   feed_url: wss://streamer.cryptocompare.com/v2
   exchange_list_url: https://min-api.cryptocompare.com/data/ob/exchanges
+  coinbase_wss: wss://advanced-trade-ws.coinbase.com
+  kraken_wss: wss://ws.kraken.com/v2
 
 logger:
   logs_path: "~/crypto_arb_finder/logs/"

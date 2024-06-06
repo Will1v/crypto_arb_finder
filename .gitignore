@@ -1,6 +1,10 @@
-# Ignore actual secrets and config files
-config/secrets.env
+# Ignore actual config files
 config/config.yml
+
+# Ignore all .env files except the template secrets file
+*.env
+!config/secrets_template.env
+
 
 # Python 
 __pycache__/
