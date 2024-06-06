@@ -9,8 +9,8 @@ class Secrets:
         # Load environment variables from the .env file
         load_dotenv("config/secrets.env")
         self.cryptocompare_api_key = os.getenv("CRYPTOCOMPARE_API_KEY")
-        self.db_password = os.getenv("DB_PASSWORD")
-        self.coinbase_secret = os.getenv("COINBASE_SECRET")
+        self.coinbase_api_key = os.getenv("COINBASE_API_KEY")
+        self.coinbase_signing = os.getenv("COINBASE_SIGNING_KEY")
 
 
 class NestedConfig:

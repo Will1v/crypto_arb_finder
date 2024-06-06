@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 import yaml
 from config import config
 from logger import get_logger
-from feed_handlers import KrakenFeedHandler
+from feed_handlers import KrakenFeedHandler, CoinbaseFeedHandler
 from web_gui.app import start_web_gui
 from database import db_helper
 
@@ -28,8 +28,16 @@ def main():
             feed_handler.start_fh()
             time.sleep(5)"""
 
-    feed_handler = KrakenFeedHandler("BTC", "USD", "Kraken")
-    feed_handler.start_fh()
+    # feed_handler = KrakenFeedHandler("BTC", "USD", "Kraken")
+    # feed_handler.start_fh()
+
+    feed_handler = CoinbaseFeedHandler("BTC", "USD", "Coinbase")
+    try:
+        feed_handler.start_fh()
+    except KeyboardInterrupt:
+        logger.info(f"KeyboardInterrupt: Stopping FH [{feed_handler}]")
+        feed_handler.stop_fh()
+        logger.info(f"Feed handler [{feed_handler}] stopped")
 
     # Start web GUI
     # start_web_gui()

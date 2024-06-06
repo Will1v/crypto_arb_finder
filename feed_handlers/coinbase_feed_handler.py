@@ -2,14 +2,14 @@ from feed_handlers import FeedHandler
 from config import config, secrets
 from market import OrderBook
 from logger import get_logger
-import asyncio
-import base64
-import hashlib
-import hmac
+import traceback
+
+# import jwt
 import json
 import os
 import time
-import websockets
+import websocket
+import threading
 from datetime import datetime
 
 logger = get_logger(__name__)
@@ -20,8 +20,11 @@ class CoinbaseFeedHandler(FeedHandler):
     def __init__(self, ccy_1: str, ccy_2: str, exchange: str):
         super().__init__(ccy_1=ccy_1, ccy_2=ccy_2, exchange=exchange)
         self.feed_uri = config.feed_handler.coinbase_wss
-        self.api_key = secrets.coinbase_api_key
-        self.secret_key = secrets.coinbase_secret
+        self.API_KEY = secrets.coinbase_api_key
+        self.SIGNING_KEY = secrets.coinbase_signing
+        self.ALGORITHM = "ES256"
+        assert self.API_KEY and self.SIGNING_KEY, "API_KEY or SIGNING_KEY missing"
+        self.channel = "level2"
         self.ccy_1 = ccy_1
         self.ccy_2 = ccy_2
         self.exchange = exchange
@@ -31,60 +34,149 @@ class CoinbaseFeedHandler(FeedHandler):
         # Technical variables:
         self.socket_id = ""
         self.unknown_ws_types = set()
-        self.reconnect_attempts = 3
+        self.max_retries = 5
+        self.retry_delay = 5  # seconds
+        self.retry_count = 0
 
     def on_message(self, ws, message):
         data = json.loads(message)
-        """
-        type = data["TYPE"]
-        # TODO: migrate to Python 3.10 to use switch case (match)
-        if type == "20":
-            self.socket_id = data["SOCKET_ID"]
-        elif type == "30":  # Order book update
-            # TODO: are these asserts overkill?
-            assert data["M"] in self.exchanges
-            assert data["FSYM"] == self.ccy_1
-            assert data["TSYM"] == self.ccy_2
-            if "BID" in data.keys():
-                self.order_book.set_bid(
-                    float(data["BID"][0]["P"]),
-                    float(data["BID"][0]["Q"]),
-                    datetime.fromtimestamp(int(data["BID"][0]["REPORTEDNS"]) / 1e9),
-                )
-            if "ASK" in data.keys():
-                self.order_book.set_ask(
-                    float(data["ASK"][0]["P"]),
-                    float(data["ASK"][0]["Q"]),
-                    datetime.fromtimestamp(int(data["ASK"][0]["REPORTEDNS"]) / 1e9),
-                )
-        elif type not in self.unknown_ws_types:
-            self.unknown_ws_types.add(type)
-            """
+        logger.debug(f"Received data on channel: {data['channel']}")
+        if data.get("channel") == "l2_data":
+            for event in data["events"]:
+                if event["type"] == "update":
+                    logger.debug(
+                        f"on_message->update event for {event['product_id']}: updates = {event['updates']}"
+                    )
+                    bid = bid_q = ask = ask_q = None
+                    new_bids = {
+                        float(update["price_level"]): (
+                            float(update["new_quantity"]),
+                            update["event_time"],
+                        )
+                        for update in event["updates"]
+                        if update["side"] == "bid"
+                        and float(update["new_quantity"]) != 0
+                    }
+                    gone_bids = {
+                        float(update["price_level"]): (
+                            float(update["new_quantity"]),
+                            update["event_time"],
+                        )
+                        for update in event["updates"]
+                        if update["side"] == "bid"
+                        and float(update["new_quantity"]) == 0
+                    }
+                    new_asks = {
+                        float(update["price_level"]): (
+                            float(update["new_quantity"]),
+                            update["event_time"],
+                        )
+                        for update in event["updates"]
+                        if update["side"] == "offer"
+                        and float(update["new_quantity"]) != 0
+                    }
+                    gone_asks = {
+                        float(update["price_level"]): (
+                            float(update["new_quantity"]),
+                            update["event_time"],
+                        )
+                        for update in event["updates"]
+                        if update["side"] == "offer"
+                        and float(update["new_quantity"]) == 0
+                    }
+
+                    logger.debug(
+                        f"new_bids = {new_bids}, gone_bids = {gone_bids}, new_asks = {new_asks}, gone_asks = {gone_asks}"
+                    )
+
+                    if gone_bids and self.order_book.bid in gone_bids.keys():
+                        # Best bid gone
+                        bid = bid_q = None
+                    if new_bids and (
+                        not self.order_book.bid
+                        or self.order_book.bid <= max(new_bids.keys())
+                    ):
+                        # New best bid
+                        bid = max(new_bids.keys())
+                        bid_q = new_bids[bid][0]
+
+                    if gone_asks and self.order_book.ask in gone_asks.keys():
+                        # Best bid gone
+                        ask = ask_q = 0
+                    if new_asks and (
+                        not self.order_book.ask
+                        or self.order_book.ask >= min(new_asks.keys())
+                    ):
+                        # New best bid
+                        ask = min(new_asks.keys())
+                        ask_q = new_asks[ask][0]
+
+                    tick_timestamp = event["updates"][0]["event_time"]
+                    logger.debug(f"tick_timestamp = {tick_timestamp}")
+                    self.order_book.set_bid_ask(
+                        bid=bid,
+                        bid_q=bid_q,
+                        ask=ask,
+                        ask_q=ask_q,
+                        event_time=tick_timestamp,
+                    )
+        else:
+            logger.debug(f"Non l2_data message received: {data}")
+
+    def on_open(self, ws):
+        # Subscribe to the desired channels
+        try:
+            subscription_message = {
+                "type": "subscribe",
+                "channel": self.channel,
+                "product_ids": [f"{self.ccy_1}-{self.ccy_2}"],
+            }
+            logger.debug(f"Opening WS with: {subscription_message}")
+            signed_message = self.sign_with_jwt(
+                subscription_message, self.channel, ["ETH-USD", "ETH-EUR"]
+            )
+            ws.send(json.dumps(subscription_message))
+        except Exception as e:
+            error_details = "".join(
+                traceback.format_exception(type(e), e, e.__traceback__)
+            )
+            logger.exception(f"Error during WebSocket open: {error_details}")
 
     def on_error(self, ws, error):
-        logger.error(f"WebSocket error: {error}")
+        if isinstance(error, Exception):
+            error_details = "".join(
+                traceback.format_exception(type(error), error, error.__traceback__)
+            )
+            logger.exception(f"WebSocket error: {error_details}")
+        else:
+            logger.error(f"WebSocket error: {error}")
 
     def on_close(self, ws, close_status_code, close_msg):
         logger.info(f"WebSocket closed: {close_status_code}, {close_msg}")
         self.running = False
 
-    def on_open(self, ws):
-        # Subscribe to the desired channels
-        subscription_message = {
-            "type": "subscribe",
-            "product_ids": ["ETH-USD", "ETH-EUR"],
-            "channels": [
-                "level2",
-                "heartbeat",
-                {"name": "ticker", "product_ids": ["ETH-BTC", "ETH-USD"]},
-            ],
-        }
-        logger.debug(f"Opening WS with: {subscription_message}")
-        ws.send(json.dumps(subscription_message))
+    def retry_connection(self):
+        if self.retry_count < self.max_retries:
+            self.retry_count += 1
+            logger.info(f"Retrying connection in {self.retry_delay} seconds...")
+            time.sleep(self.retry_delay)
+            self.run()
+        else:
+            logger.error("Max retries exceeded. Could not connect to WebSocket.")
+            self.running = False
+
+    def stop_fh(self):
+        self.running = False
+        if self.ws:
+            self.ws.close()
+
+    def sign_with_jwt(self, message, channel, products=[]):
+        # Not implemented, not needed for now.
+        return message
 
     def start_fh(self):
         logger.debug("Entering FH run")
-        ws_url = f"{self.feed_uri}?api_key={self.cc_api_key}"
+        ws_url = self.feed_uri
 
         def run_fh_ws():
             # Initialize the WebSocket
