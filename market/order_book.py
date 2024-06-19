@@ -4,7 +4,9 @@ from database import db_helper
 import time
 import threading
 import queue
-from typing import Optional
+from typing import Literal
+import sqlite3
+from sortedcontainers import SortedDict
 
 logger = get_logger(__name__)
 
@@ -15,11 +17,10 @@ class OrderBook(threading.Thread):
         self._ccy_1 = ccy_1
         self._ccy_2 = ccy_2
         self._exchange = exchange
-        self._bid = None
-        self._bid_q = None
-        self._ask = None
-        self._ask_q = None
+        self._bids = SortedDict(lambda x: -x)
+        self._asks = SortedDict()
         self._bid_ask_history = []
+        self.last_update = datetime.now()
         self.db_queue = queue.Queue()
 
         # Multithreading management
@@ -43,32 +44,58 @@ class OrderBook(threading.Thread):
     @property
     def exchange(self):
         return self._exchange
+    
+    def register_best_bid_offer(self) -> None: 
+            best_bid, best_bid_q = next(self._bids.items())
+            best_ask, best_ask_q = next(self._asks.items())
+            self._bid_ask_history.append(
+            {
+                "event_time": self.last_update,
+                "bid_q": best_bid_q,
+                "bid": best_bid,
+                "ask": best_ask,
+                "ask_q": best_ask_q,
+            }
+        )
+    
+    def set_bid(self, bid: float, bid_q: float, event_time: datetime):
+        self.register_tick(bid_ask='bid', price=bid, quantity=bid_q, event_time=event_time)
 
-    @property
-    def bid(self):
-        return self._bid
+    def set_ask(self, ask: float, ask_q: float, event_time: datetime):
+        self.register_tick(bid_ask='ask', price=ask, quantity=ask_q, event_time=event_time)
 
-    @property
-    def bid_q(self):
-        return self._bid_q
+    def register_tick(self, bid_ask: Literal['bid', 'ask'], price: float, quantity: float, event_time: datetime):
+        # If we're on a new event time, save the current BBO
+        if event_time > self.last_update:
+            self.register_best_bid_offer()
+            self.last_update == event_time
+        # New limit or modified quantity on existing limit
+        if quantity > 0:
+            if bid_ask == 'bid':
+                self._bids[price] = quantity
+            else:
+                self._asks[price] = quantity
+        # Limit gone, to remove
+        else:
+            if bid_ask == 'bid':
+                del self._bids[price]
+            else:
+                del self._asks[price] 
+        
 
+
+
+    """    
     def set_bid(self, bid: float, bid_q: float, event_time: datetime):
         self.set_bid_ask(
             bid=bid, bid_q=bid_q, ask=self.ask, ask_q=self.ask_q, event_time=event_time
         )
 
-    @property
-    def ask(self):
-        return self._ask
-
-    @property
-    def ask_q(self):
-        return self._ask_q
-
     def set_ask(self, ask: float, ask_q: float, event_time: datetime):
         self.set_bid_ask(
             bid=self.bid, bid_q=self.bid_q, ask=ask, ask_q=ask_q, event_time=event_time
         )
+
 
     def set_bid_ask(
         self,
@@ -112,6 +139,7 @@ class OrderBook(threading.Thread):
                 }
             )
             logger.info(f"New tick: {self}")
+            """
 
     # This fills the queue of updates to dump in DB every 1 second
     def periodic_insertion(self):
@@ -141,30 +169,39 @@ class OrderBook(threading.Thread):
                 while not self.db_queue.empty():
                     data_batch.append(self.db_queue.get())
             self.flush_to_db(data_batch)
-            time.sleep(60)
+            time.sleep(10)
 
     # This builds the insert query and inserts into DB
     def flush_to_db(self, data_batch):
         if data_batch:
-            db_conn = db_helper.get_db_connection()
-            insert_query = f"INSERT INTO order_book (timestamp, currency_1, currency_2, bid_q, bid, ask, ask_q, exchange) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+            try:
+                db_conn = db_helper.get_db_connection()
+                insert_query = f"INSERT INTO order_book (timestamp, currency_1, currency_2, bid_q, bid, ask, ask_q, exchange) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+                logger.debug(f"Flushing to DB: {insert_query}")
 
-            values = [
-                (
-                    h["event_time"],
-                    self._ccy_1,
-                    self._ccy_2,
-                    h["bid_q"],
-                    h["bid"],
-                    h["ask"],
-                    h["ask_q"],
-                    self.exchange,
-                )
-                for h in data_batch
-            ]
-            db_conn.cursor().executemany(insert_query, values)
-            db_conn.commit()
-            logger.info(f"{len(data_batch)} entries added to DB")
+                values = [
+                    (
+                        h["event_time"],
+                        self._ccy_1,
+                        self._ccy_2,
+                        h["bid_q"],
+                        h["bid"],
+                        h["ask"],
+                        h["ask_q"],
+                        self.exchange,
+                    )
+                    for h in data_batch
+                ]
+                logger.debug(f"values = {values}")
+                db_conn.cursor().executemany(insert_query, values)
+                db_conn.commit()
+                logger.info(f"{len(data_batch)} entries added to DB")
+            except sqlite3.Error as e:
+                logger.error(f"SQLite error: {e.args[0]}")
+                logger.error("Exception occurred", exc_info=True)
+            except Exception as e:
+                logger.error(f"General error: {str(e)}")
+                logger.error("Exception occurred", exc_info=True)
         else:
             logger.info("bid_ask_history empty, skipping...")
 
