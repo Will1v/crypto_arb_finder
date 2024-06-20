@@ -8,6 +8,7 @@ import queue
 from typing import Literal
 import sqlite3
 from sortedcontainers import SortedDict
+from config import config
 
 logger = get_logger(__name__)
 
@@ -15,6 +16,7 @@ logger = get_logger(__name__)
 class OrderBook(threading.Thread):
     def __init__(self, ccy_1: str, ccy_2: str, exchange: str) -> None:
         super().__init__()
+        self.depth = config.order_book.depth
         self._ccy_1 = ccy_1
         self._ccy_2 = ccy_2
         self._exchange = exchange
@@ -27,6 +29,7 @@ class OrderBook(threading.Thread):
         self._last_best_ask_q = None
         self.last_update = datetime.now(pytz.UTC)
         self.db_queue = queue.Queue()
+        self.snapshot_complete = False
 
         # Multithreading management
         self.lock = threading.Lock()
@@ -51,30 +54,34 @@ class OrderBook(threading.Thread):
         return self._exchange
     
     def register_best_bid_offer(self) -> None: 
-        best_bid, best_bid_q = next(iter(self._bids.items()), (None, None))
-        best_ask, best_ask_q = next(iter(self._asks.items()), (None, None))
-        if (self._last_best_bid, self._last_best_bid_q, self._last_best_ask, self._last_best_ask_q) != (best_bid, best_bid_q, best_ask, best_ask_q):
-            self._bid_ask_history.append(
-                {
-                    "event_time": self.last_update,
-                    "bid_q": best_bid_q,
-                    "bid": best_bid,
-                    "ask": best_ask,
-                    "ask_q": best_ask_q,
-                }
-            )
-            if self._last_best_bid != best_bid:
-                logger.debug(f"self._last_best_bid {self._last_best_bid} != best_bid {best_bid}")
-            if self._last_best_bid_q != best_bid_q:
-                logger.debug(f"self._last_best_bid_q {self._last_best_bid_q} != best_bid_q {best_bid_q}")
-            if self._last_best_ask != best_ask:
-                logger.debug(f"self._last_best_ask {self._last_best_ask} != best_ask {best_ask}")
-            if self._last_best_ask_q != best_ask_q:
-                logger.debug(f"self._last_best_ask_q {self._last_best_ask_q} != best_ask_q {best_ask_q}")
-            logger.debug(f"register_best_bid_offer: self._bid_ask_history now size {len(self._bid_ask_history)}")
-            self._last_best_bid, self._last_best_bid_q, self._last_best_ask, self._last_best_ask_q = best_bid, best_bid_q, best_ask, best_ask_q
+        if self.snapshot_complete:
+            best_bid, best_bid_q = next(iter(self._bids.items()), (None, None))
+            best_ask, best_ask_q = next(iter(self._asks.items()), (None, None))
+            if (self._last_best_bid, self._last_best_bid_q, self._last_best_ask, self._last_best_ask_q) != (best_bid, best_bid_q, best_ask, best_ask_q):
+                self._bid_ask_history.append(
+                    {
+                        "event_time": self.last_update,
+                        "bid_q": best_bid_q,
+                        "bid": best_bid,
+                        "ask": best_ask,
+                        "ask_q": best_ask_q,
+                    }
+                )
+                if self._last_best_bid != best_bid:
+                    logger.debug(f"self._last_best_bid {self._last_best_bid} != best_bid {best_bid}")
+                if self._last_best_bid_q != best_bid_q:
+                    logger.debug(f"self._last_best_bid_q {self._last_best_bid_q} != best_bid_q {best_bid_q}")
+                if self._last_best_ask != best_ask:
+                    logger.debug(f"self._last_best_ask {self._last_best_ask} != best_ask {best_ask}")
+                if self._last_best_ask_q != best_ask_q:
+                    logger.debug(f"self._last_best_ask_q {self._last_best_ask_q} != best_ask_q {best_ask_q}")
+                    
+                logger.debug(f"register_best_bid_offer: self._bid_ask_history now size {len(self._bid_ask_history)}")
+                self._last_best_bid, self._last_best_bid_q, self._last_best_ask, self._last_best_ask_q = best_bid, best_bid_q, best_ask, best_ask_q
+            else:
+                logger.debug("No change to BBO")
         else:
-            logger.debug("No change to BBO")
+            logger.warning(f"Still loading snapshot, can't register best bid offer just yet...")
     
     def set_bid(self, bid: float, bid_q: float, event_time: datetime):
         self.register_tick(bid_ask='bid', price=bid, quantity=bid_q, event_time=event_time)
@@ -102,6 +109,12 @@ class OrderBook(threading.Thread):
             else:
                 if price in self._asks:
                     del self._asks[price] 
+
+        while len(self._bids) > self.depth:
+            self._bids.popitem()
+
+        while len(self._asks) > self.depth:
+            self._asks.popitem()
         
     # This fills the queue of updates to dump in DB every 1 second
     def periodic_insertion(self):
