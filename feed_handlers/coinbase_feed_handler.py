@@ -46,16 +46,17 @@ class CoinbaseFeedHandler(FeedHandler):
         logger.debug(f"Received data on channel: {data['channel']}")
         if data.get("channel") == "l2_data":
             for event in data["events"]:
-                if event["type"] == "update":
-                    logger.debug(
-                        f"on_message->update event for {event['product_id']}: updates = {event['updates']}"
-                    )
-
+                if event["type"] in ["update", "snapshot"]:
+                    if event["type"] == "snapshot":
+                        logger.debug("Starting snapshot processing")
                     for update in event["updates"]:
                         if update["side"] == "bid":
                             self.order_book.set_bid(bid=float(update["price_level"]), bid_q=float(update["new_quantity"]), event_time=isoparse(update["event_time"]))
                         else:
                             self.order_book.set_ask(ask=float(update["price_level"]), ask_q=float(update["new_quantity"]), event_time=isoparse(update["event_time"]))
+                    if event["type"] == "snapshot":
+                        logger.debug("Snapshot processing complete")
+                        self.order_book.snapshot_complete  = True
         else:
             logger.debug(f"Non l2_data message received: {data}")
 
