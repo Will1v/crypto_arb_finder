@@ -1,6 +1,6 @@
 from feed_handlers import FeedHandler
 from config import config, secrets
-from market import OrderBook
+from market import FullOrderBook
 from logger import get_logger
 import traceback
 
@@ -11,13 +11,17 @@ import time
 import websocket
 import threading
 from datetime import datetime
+from dateutil.parser import isoparse
+
 
 logger = get_logger(__name__)
+coinbase_format = "%Y-%m-%dT%H:%M:%S.%fZ"
 
 
 class CoinbaseFeedHandler(FeedHandler):
 
-    def __init__(self, ccy_1: str, ccy_2: str, exchange: str):
+    def __init__(self, ccy_1: str, ccy_2: str):
+        exchange="Coinbase"
         super().__init__(ccy_1=ccy_1, ccy_2=ccy_2, exchange=exchange)
         self.feed_uri = config.feed_handler.coinbase_wss
         self.API_KEY = secrets.coinbase_api_key
@@ -27,9 +31,8 @@ class CoinbaseFeedHandler(FeedHandler):
         self.channel = "level2"
         self.ccy_1 = ccy_1
         self.ccy_2 = ccy_2
-        self.exchange = exchange
         logger.debug(f"Init FH with feed_uri = {self.feed_uri}")
-        self.order_book = OrderBook(ccy_1, ccy_2, exchange)
+        self.order_book = FullOrderBook(ccy_1, ccy_2, exchange)
 
         # Technical variables:
         self.socket_id = ""
@@ -43,83 +46,17 @@ class CoinbaseFeedHandler(FeedHandler):
         logger.debug(f"Received data on channel: {data['channel']}")
         if data.get("channel") == "l2_data":
             for event in data["events"]:
-                if event["type"] == "update":
-                    logger.debug(
-                        f"on_message->update event for {event['product_id']}: updates = {event['updates']}"
-                    )
-                    bid = bid_q = ask = ask_q = None
-                    new_bids = {
-                        float(update["price_level"]): (
-                            float(update["new_quantity"]),
-                            update["event_time"],
-                        )
-                        for update in event["updates"]
-                        if update["side"] == "bid"
-                        and float(update["new_quantity"]) != 0
-                    }
-                    gone_bids = {
-                        float(update["price_level"]): (
-                            float(update["new_quantity"]),
-                            update["event_time"],
-                        )
-                        for update in event["updates"]
-                        if update["side"] == "bid"
-                        and float(update["new_quantity"]) == 0
-                    }
-                    new_asks = {
-                        float(update["price_level"]): (
-                            float(update["new_quantity"]),
-                            update["event_time"],
-                        )
-                        for update in event["updates"]
-                        if update["side"] == "offer"
-                        and float(update["new_quantity"]) != 0
-                    }
-                    gone_asks = {
-                        float(update["price_level"]): (
-                            float(update["new_quantity"]),
-                            update["event_time"],
-                        )
-                        for update in event["updates"]
-                        if update["side"] == "offer"
-                        and float(update["new_quantity"]) == 0
-                    }
-
-                    logger.debug(
-                        f"new_bids = {new_bids}, gone_bids = {gone_bids}, new_asks = {new_asks}, gone_asks = {gone_asks}"
-                    )
-
-                    if gone_bids and self.order_book.bid in gone_bids.keys():
-                        # Best bid gone
-                        bid = bid_q = None
-                    if new_bids and (
-                        not self.order_book.bid
-                        or self.order_book.bid <= max(new_bids.keys())
-                    ):
-                        # New best bid
-                        bid = max(new_bids.keys())
-                        bid_q = new_bids[bid][0]
-
-                    if gone_asks and self.order_book.ask in gone_asks.keys():
-                        # Best bid gone
-                        ask = ask_q = 0
-                    if new_asks and (
-                        not self.order_book.ask
-                        or self.order_book.ask >= min(new_asks.keys())
-                    ):
-                        # New best bid
-                        ask = min(new_asks.keys())
-                        ask_q = new_asks[ask][0]
-
-                    tick_timestamp = event["updates"][0]["event_time"]
-                    logger.debug(f"tick_timestamp = {tick_timestamp}")
-                    self.order_book.set_bid_ask(
-                        bid=bid,
-                        bid_q=bid_q,
-                        ask=ask,
-                        ask_q=ask_q,
-                        event_time=tick_timestamp,
-                    )
+                if event["type"] in ["update", "snapshot"]:
+                    if event["type"] == "snapshot":
+                        logger.debug("Starting snapshot processing")
+                    for update in event["updates"]:
+                        if update["side"] == "bid":
+                            self.order_book.set_bid(bid=float(update["price_level"]), bid_q=float(update["new_quantity"]), event_time=isoparse(update["event_time"]))
+                        else:
+                            self.order_book.set_ask(ask=float(update["price_level"]), ask_q=float(update["new_quantity"]), event_time=isoparse(update["event_time"]))
+                    if event["type"] == "snapshot":
+                        logger.debug("Snapshot processing complete")
+                        self.order_book.snapshot_complete  = True
         else:
             logger.debug(f"Non l2_data message received: {data}")
 

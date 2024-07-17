@@ -31,9 +31,14 @@ def main():
     # feed_handler = KrakenFeedHandler("BTC", "USD", "Kraken")
     # feed_handler.start_fh()
 
-    feed_handler = CoinbaseFeedHandler("BTC", "USD", "Coinbase")
+    feed_handlers = []
+    feed_handlers.append(CoinbaseFeedHandler("BTC", "USD"))
+    feed_handlers.append(KrakenFeedHandler("BTC", "USD"))
+    feed_handlers.append(CoinbaseFeedHandler("ETH", "USD"))
+    feed_handlers.append(KrakenFeedHandler("ETH", "USD"))
     try:
-        feed_handler.start_fh()
+        for feed_handler in feed_handlers:
+            feed_handler.start_fh()
     except KeyboardInterrupt:
         logger.info(f"KeyboardInterrupt: Stopping FH [{feed_handler}]")
         feed_handler.stop_fh()
