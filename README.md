@@ -1,10 +1,10 @@
 ## Project progress
 
-- [ ] Preliminary work
+- [x] Preliminary work
    - [x] Decide on crypto API:  <a href="https://min-api.cryptocompare.com/" target="_blank">Crypto Compare</a>
    - [x] Decide on database: sqlite3
 - [ ] Feed handler
-   - [ ] Store market data to DB
+   - [x] Store market data to DB
       - [x] For one exchange
       - [ ] For multiple exchanges
          - [x] Kraken
@@ -56,3 +56,9 @@ For example, run:
 touch database/crypto_arb_finder.sqlite3
 ```
 (NB: make sure this matches what you've defined in `config/config.yaml`)
+
+
+# Notes
+
+Initially used Kraken's BBO feed vs Coinbase's full order book feed. Kraken's BBO feed looks very illiquid, so will try to use a full order book instead.
+![image](https://github.com/user-attachments/assets/8acb6ea0-5056-4c56-871b-54da4a93e2b5)
