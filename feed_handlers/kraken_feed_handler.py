@@ -1,6 +1,6 @@
 from feed_handlers import FeedHandler
 from config import config, secrets
-from market import OrderBook
+from market import BestBidOfferOrderBook
 from logger import get_logger
 import json
 import threading
@@ -12,14 +12,15 @@ logger = get_logger(__name__)
 
 class KrakenFeedHandler(FeedHandler):
 
-    def __init__(self, ccy_1: str, ccy_2: str, exchange: str):
+    def __init__(self, ccy_1: str, ccy_2: str):
+        exchange = "Kraken"
         super().__init__(ccy_1=ccy_1, ccy_2=ccy_2, exchange=exchange)
         self.feed_uri = config.feed_handler.kraken_wss
         self.ccy_1 = ccy_1
         self.ccy_2 = ccy_2
         self.exchange = exchange
         logger.debug(f"Init FH with feed_uri = {self.feed_uri}")
-        self.order_book = OrderBook(ccy_1, ccy_2, exchange)
+        self.order_book = BestBidOfferOrderBook(ccy_1, ccy_2, self.exchange)
 
         # Technical variables:
         self.socket_id = ""
@@ -44,7 +45,7 @@ class KrakenFeedHandler(FeedHandler):
                     data["bid_qty"],
                     data["ask"],
                     data["ask_qty"],
-                    datetime.now(),
+                    datetime.utcnow(),
                 )
             else:
                 logger.debug(f"Received non data message: {response}")

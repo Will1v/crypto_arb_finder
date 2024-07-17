@@ -1,6 +1,6 @@
 from feed_handlers import FeedHandler
 from config import config, secrets
-from market import OrderBook
+from market import FullOrderBook
 from logger import get_logger
 import traceback
 
@@ -20,7 +20,8 @@ coinbase_format = "%Y-%m-%dT%H:%M:%S.%fZ"
 
 class CoinbaseFeedHandler(FeedHandler):
 
-    def __init__(self, ccy_1: str, ccy_2: str, exchange: str):
+    def __init__(self, ccy_1: str, ccy_2: str):
+        exchange="Coinbase"
         super().__init__(ccy_1=ccy_1, ccy_2=ccy_2, exchange=exchange)
         self.feed_uri = config.feed_handler.coinbase_wss
         self.API_KEY = secrets.coinbase_api_key
@@ -30,9 +31,8 @@ class CoinbaseFeedHandler(FeedHandler):
         self.channel = "level2"
         self.ccy_1 = ccy_1
         self.ccy_2 = ccy_2
-        self.exchange = exchange
         logger.debug(f"Init FH with feed_uri = {self.feed_uri}")
-        self.order_book = OrderBook(ccy_1, ccy_2, exchange)
+        self.order_book = FullOrderBook(ccy_1, ccy_2, exchange)
 
         # Technical variables:
         self.socket_id = ""
