@@ -62,3 +62,9 @@ touch database/crypto_arb_finder.sqlite3
 
 Initially used Kraken's BBO feed vs Coinbase's full order book feed. Kraken's BBO feed looks very illiquid, so will try to use a full order book instead.
 ![image](https://github.com/user-attachments/assets/8acb6ea0-5056-4c56-871b-54da4a93e2b5)
+
+Full order book actually looks similar. Couple of observations:
+- Displaying the spreads does show that for BTC/USD Coinbase is one a 1ct spread whereas Kraken is on 10ct which would explain more stable prices
+- It seems like Kraken's feed broadcasts "stable" order book (ie first limit will go straigth from 639001.1/639001.2 to 639002.3/639002.4, keeping its spread to 10ct most of the time) while Coinbase would be more realistic (eg going 639001.1/639001.2 -> 639001.1/639002.4 -> 639002.3/639002.4, therefore having the spread going 10ct -> 130ct -> 10ct)
+
+![image](https://github.com/user-attachments/assets/7264d615-3bfa-4815-b020-091c124102a2)
