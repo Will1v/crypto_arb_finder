@@ -1,11 +1,13 @@
 from feed_handlers import FeedHandler
 from config import config, secrets
-from market import BestBidOfferOrderBook
+from market import FullOrderBook
 from logger import get_logger
 import json
 import threading
 import websocket
 from datetime import datetime
+import pytz
+
 
 logger = get_logger(__name__)
 
@@ -20,7 +22,7 @@ class KrakenFeedHandler(FeedHandler):
         self.ccy_2 = ccy_2
         self.exchange = exchange
         logger.debug(f"Init FH with feed_uri = {self.feed_uri}")
-        self.order_book = BestBidOfferOrderBook(ccy_1, ccy_2, self.exchange)
+        self.order_book = FullOrderBook(ccy_1, ccy_2, self.exchange)
 
         # Technical variables:
         self.socket_id = ""
@@ -30,6 +32,14 @@ class KrakenFeedHandler(FeedHandler):
     def on_message(self, ws, message):
         try:
             response = json.loads(message)
+            if response.get("channel") == "book":
+                is_snapshot = True if response.get("type") == "snapshot" else False
+                
+                if response.get("type") in ["update", "snapshot"]:
+                    self.process_update(response, is_snapshot)
+
+
+            """
             if (
                 response.get("channel") == "ticker"
                 and response.get("type") == "update"
@@ -49,6 +59,7 @@ class KrakenFeedHandler(FeedHandler):
                 )
             else:
                 logger.debug(f"Received non data message: {response}")
+            """
 
         except Exception as e:
             logger.exception(f"Error processing message: {e}")
@@ -65,14 +76,28 @@ class KrakenFeedHandler(FeedHandler):
         subscription_message = {
             "method": "subscribe",
             "params": {
-                "channel": "ticker",
+                "channel": "book",
                 "symbol": [f"{self.ccy_1}/{self.ccy_2}"],
-                "event_trigger": "bbo",
-                "snapshot": False,
+                "depth": 10,
+                "snapshot": True,
             },
         }
         logger.debug(f"Opening WS with: {subscription_message}")
         ws.send(json.dumps(subscription_message))
+
+    def process_update(self, response: dict, is_snapshot: bool = False):
+        if is_snapshot:
+            logger.debug("Processing snapshot")
+        # Kraken unfortunately doesn't provide a timestamp with its snapshot
+        timestamp = datetime.now(pytz.UTC)
+        for row in response.get("data"):
+            for bid in row['bids']:
+                self.order_book.set_bid(bid=float(bid["price"]), bid_q=float(bid["qty"]), event_time=timestamp)
+            for ask in row['asks']:
+                self.order_book.set_ask(ask=float(ask["price"]), ask_q=float(ask["qty"]), event_time=timestamp)
+        if is_snapshot:
+            self.order_book.snapshot_complete  = True
+            logger.debug("Snapshot complete")
 
     def start_fh(self):
         logger.debug("Entering FH run")
