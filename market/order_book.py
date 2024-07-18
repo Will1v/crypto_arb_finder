@@ -25,6 +25,7 @@ class OrderBook(threading.Thread):
         self._bid_ask_history = []
         self.last_update = datetime.now(pytz.UTC)
         self.db_queue = queue.Queue()
+        self._max_db_inserts_attempts = 3
 
     def init_and_start_threads(self):
         # Multithreading management
@@ -100,11 +101,23 @@ class OrderBook(threading.Thread):
                     )
                     for h in data_batch
                 ]
-                logger.debug(f"values = {len(values)}")
-                t0 = time.perf_counter()
-                db_conn.cursor().executemany(insert_query, values)
-                db_conn.commit()
-                logger.info(f"{len(data_batch)} entries added to DB ({(time.perf_counter() - t0) * 1000}ms)")
+                logger.debug(f"Attempting to insert {len(values)} values")
+                for attempt in range(self._max_db_inserts_attempts):
+                    try:
+                        t0 = time.perf_counter()
+                        db_conn.cursor().executemany(insert_query, values)
+                        db_conn.commit()
+                        logger.info(f"{len(data_batch)} entries added to DB ({(time.perf_counter() - t0) * 1000:.2f}ms)")
+                        break
+                    except sqlite3.OperationalError as e:
+                        logger.exception(f"Sqlite3 OperationError thrown: {e}")
+                        if attempt < self._max_db_inserts_attempts:
+                            retry_wait = (2.7 ** (attempt + 1))
+                            logger.debug(f"Will attempt new insert in {retry_wait:.2f}s")
+                            time.sleep(retry_wait)
+                        else:
+                            logger.error(f"Insert of {len(values)} values failed after {self._max_db_inserts_attempts} attempts. Data will be missing.")
+
             except sqlite3.Error as e:
                 logger.error(f"SQLite error: {e.args[0]}")
                 logger.error("Exception occurred", exc_info=True)
