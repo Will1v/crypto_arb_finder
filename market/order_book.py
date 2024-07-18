@@ -101,9 +101,10 @@ class OrderBook(threading.Thread):
                     for h in data_batch
                 ]
                 logger.debug(f"values = {len(values)}")
+                t0 = time.perf_counter()
                 db_conn.cursor().executemany(insert_query, values)
                 db_conn.commit()
-                logger.info(f"{len(data_batch)} entries added to DB")
+                logger.info(f"{len(data_batch)} entries added to DB ({(time.perf_counter() - t0) * 1000}ms)")
             except sqlite3.Error as e:
                 logger.error(f"SQLite error: {e.args[0]}")
                 logger.error("Exception occurred", exc_info=True)
@@ -134,8 +135,6 @@ class BestBidOfferOrderBook(OrderBook):
         self._best_ask_q = ask_q
         self.last_update = event_time
         self.register_best_bid_offer()
-        if not self.snapshot_complete:
-            self.snapshot_complete = True
 
     def register_best_bid_offer(self) -> None: 
             if self.snapshot_complete:
@@ -151,6 +150,8 @@ class BestBidOfferOrderBook(OrderBook):
                 logger.debug(f"register_best_bid_offer: self._bid_ask_history now size {len(self._bid_ask_history)}")
             else:
                 logger.warning(f"Still loading snapshot, can't register best bid offer just yet...")
+
+    
 
 class FullOrderBook(OrderBook):
     def __init__(self, ccy_1: str, ccy_2: str, exchange: str) -> None:
