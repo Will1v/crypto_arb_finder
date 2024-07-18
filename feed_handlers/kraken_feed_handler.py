@@ -85,7 +85,7 @@ class KrakenFeedHandler(FeedHandler):
         logger.debug(f"Opening WS with: {subscription_message}")
         ws.send(json.dumps(subscription_message))
 
-    def process_update(self, response: [], is_snapshot: bool = False):
+    def process_update(self, response: dict, is_snapshot: bool = False):
         if is_snapshot:
             logger.debug("Processing snapshot")
         # Kraken unfortunately doesn't provide a timestamp with its snapshot
