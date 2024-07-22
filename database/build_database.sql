@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS order_book (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    id BIGSERIAL PRIMARY KEY,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     currency_1 TEXT NOT NULL,
     currency_2 TEXT NOT NULL,
     bid_q REAL NOT NULL,
@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS order_book (
     ask_q REAL NOT NULL,
     exchange TEXT NOT NULL
 );
+
 
 /* TODO: change to this:
 

@@ -1,33 +1,50 @@
-from crypto_arb_finder.config import config
+from crypto_arb_finder.config import config, secrets
 from logger import get_logger
 import os
-import sqlite3
+import psycopg2
+from threading import Lock, Thread
 
 logger = get_logger(__name__)
 
+class Database:
 
-def init_db():
-    conn = get_db_connection()
-    build_db_path = os.path.expanduser(config.database.build_sql_file_path)
-    try:
-        with open(build_db_path, "r") as file:
-            sql_script = file.read()
-        conn.executescript(sql_script)
-        logger.info(f"Executed build DB SQL script from {build_db_path} successfully")
-    except sqlite3.Error as e:
-        logger.exception(f"Error executing build DB SQL script: {e}")
-    except FileNotFoundError as e:
-        logger.exception(f"Error: SQL file not found: {e}")
+    _instance = None
+    _lock = Lock()
+
+    # Insuring database is a singleton
+    def __new__(cls):
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    logger.debug("database instance has not be init yet, creating it now")
+                    cls._instance = super(Database, cls).__new__(cls)
+        return cls._instance
+
+    def __init__(self):
+        self.conn = psycopg2.connect(database=config.database.db_name,
+                            host=config.database.db_host,
+                            user=config.database.db_user,
+                            password=secrets.database_password,
+                            port=config.database.db_port)
+        self.conn.autocommit = True
+
+        build_db_path = os.path.expanduser(config.database.build_sql_file_path)
+        try:
+            with open(build_db_path, "r") as file:
+                sql_script = file.read()
+            with self.conn.cursor() as cursor:
+                cursor.execute(sql_script)
+            logger.info(f"Executed build DB SQL script from {build_db_path} successfully") 
+        except FileNotFoundError as e:
+            logger.exception(f"Error: SQL file not found: {e}")
 
 
-def get_db_connection():
-    # Connect to DB
-    conn = None
-    db_file = os.path.expanduser(config.database.file_path)
-    try:
-        conn = sqlite3.connect(db_file)
-        return conn
-    except sqlite3.Error as e:
-        logger.exception(f"Error connecting to database: {e}")
-    except FileNotFoundError as e:
-        logger.exception(f"Error: DB file not found: {e}")
+database = Database()
+
+def execute_many(query: str, args: list):
+    with database.conn.cursor() as cursor:
+        mogrified_args = ','.join(cursor.mogrify("(" + ", ".join(["%s"] * len(args[0])) + ")", i).decode("utf-8") for i in args)
+        logger.debug(f"Mogrified args: {mogrified_args}")
+        cursor.execute(query + mogrified_args)
+    
+

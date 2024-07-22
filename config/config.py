@@ -11,6 +11,7 @@ class Secrets:
         self.cryptocompare_api_key = os.getenv("CRYPTOCOMPARE_API_KEY")
         self.coinbase_api_key = os.getenv("COINBASE_API_KEY")
         self.coinbase_signing = os.getenv("COINBASE_SIGNING_KEY")
+        self.database_password = os.getenv("DATABASE_PASSWORD")
 
 
 class NestedConfig:

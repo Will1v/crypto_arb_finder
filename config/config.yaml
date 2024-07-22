@@ -1,7 +1,9 @@
 database:
-  file_path: "~/crypto_arb_finder/database/crypto_arb_finder.sqlite3"
+  db_name: arb_finder
+  db_user: arb_finder
+  db_host: localhost
+  db_port: 5432
   build_sql_file_path: "~/crypto_arb_finder/database/build_database.sql"
-  name: mydatabase
 
 feed_handler:
   feed_url: wss://streamer.cryptocompare.com/v2

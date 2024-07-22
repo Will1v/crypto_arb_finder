@@ -70,8 +70,6 @@ class OrderBook(threading.Thread):
     # This pulls data from the queue and sends it to flush_to_db for it to be inserted into DB
     def db_worker(self):
         logger.debug(f"DB worker thread started with ID: {threading.get_ident()}")
-        conn = db_helper.get_db_connection()
-        assert conn  # Exit if no connection to DB
         while self.running:
             with self.lock:
                 data_batch = []
@@ -84,13 +82,12 @@ class OrderBook(threading.Thread):
     def flush_to_db(self, data_batch):
         if data_batch:
             try:
-                db_conn = db_helper.get_db_connection()
-                insert_query = f"INSERT INTO order_book (timestamp, currency_1, currency_2, bid_q, bid, ask, ask_q, exchange) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+                insert_query = f"INSERT INTO order_book (timestamp, currency_1, currency_2, bid_q, bid, ask, ask_q, exchange) VALUES "
                 logger.debug(f"Flushing to DB: {insert_query}")
 
                 values = [
                     (
-                        h["event_time"],
+                        h["event_time"].isoformat(),
                         self._ccy_1,
                         self._ccy_2,
                         h["bid_q"],
@@ -105,8 +102,7 @@ class OrderBook(threading.Thread):
                 for attempt in range(self._max_db_inserts_attempts):
                     try:
                         t0 = time.perf_counter()
-                        db_conn.cursor().executemany(insert_query, values)
-                        db_conn.commit()
+                        db_helper.execute_many(insert_query, values)
                         logger.info(f"{len(data_batch)} entries added to DB ({(time.perf_counter() - t0) * 1000:.2f}ms)")
                         break
                     except sqlite3.OperationalError as e:
