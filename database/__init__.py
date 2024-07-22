@@ -1,3 +1,3 @@
-from .db_helper import get_db_connection
+from .db_helper import execute_many
 
-__all__ = ["get_db_connection"]
+__all__ = ["execute_many"]
