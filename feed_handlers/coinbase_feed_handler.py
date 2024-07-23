@@ -3,10 +3,7 @@ from config import config, secrets
 from market import FullOrderBook
 from logger import get_logger
 import traceback
-
-# import jwt
 import json
-import os
 import time
 import websocket
 import threading
@@ -87,6 +84,8 @@ class CoinbaseFeedHandler(FeedHandler):
             logger.exception(f"WebSocket error: {error_details}")
         else:
             logger.error(f"WebSocket error: {error}")
+        if isinstance(error, websocket._exceptions.WebSocketConnectionClosedException):
+            logger.info("Connection dropped, will attempt to reconnect")
 
     def on_close(self, ws, close_status_code, close_msg):
         logger.info(f"WebSocket closed: {close_status_code}, {close_msg}")
@@ -117,22 +116,24 @@ class CoinbaseFeedHandler(FeedHandler):
 
         def run_fh_ws():
             # Initialize the WebSocket
-            try:
-                # websocket.enableTrace(True)
-                ws = websocket.WebSocketApp(
-                    ws_url,
-                    on_open=self.on_open,
-                    on_message=self.on_message,
-                    on_error=self.on_error,
-                    on_close=self.on_close,
-                )
-                # Run the WebSocket
-                logger.debug("starting ws.run_forever() now...")
-                ws.run_forever()
-            except Exception as e:
-                logger.exception(f"Exception occurred: {e}")
-                if ws:
-                    ws.close()
+            while True:
+                try:
+                    # websocket.enableTrace(True)
+                    ws = websocket.WebSocketApp(
+                        ws_url,
+                        on_open=self.on_open,
+                        on_message=self.on_message,
+                        on_error=self.on_error,
+                        on_close=self.on_close,
+                    )
+                    # Run the WebSocket
+                    logger.debug("starting ws.run_forever() now...")
+                    ws.run_forever()
+                except Exception as e:
+                    logger.exception(f"Exception occurred: {e}")
+                    if ws:
+                        ws.close()
+                time.sleep(5)
 
         fh_ws_thread = threading.Thread(target=run_fh_ws)
         logger.debug(f"Starting FH WS thread now... (FH: {self})")

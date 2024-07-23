@@ -44,7 +44,6 @@ database = Database()
 def execute_many(query: str, args: list):
     with database.conn.cursor() as cursor:
         mogrified_args = ','.join(cursor.mogrify("(" + ", ".join(["%s"] * len(args[0])) + ")", i).decode("utf-8") for i in args)
-        logger.debug(f"Mogrified args: {mogrified_args}")
         cursor.execute(query + mogrified_args)
     
 

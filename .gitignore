@@ -12,6 +12,7 @@ __pycache__/
 
 # Logs
 *.log
+logs/
 
 # VSCode
 .vscode

@@ -139,7 +139,7 @@ class BestBidOfferOrderBook(OrderBook):
 
     def set_bid_ask(self, bid: float, bid_q: float, ask: float, ask_q: float, event_time: datetime):
         self._best_bid = bid
-        self._best_bid_q =bid_q
+        self._best_bid_q = bid_q
         self._best_ask = ask
         self._best_ask_q = ask_q
         self.last_update = event_time

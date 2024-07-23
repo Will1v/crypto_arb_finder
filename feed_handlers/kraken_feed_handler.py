@@ -7,6 +7,7 @@ import threading
 import websocket
 from datetime import datetime
 import pytz
+import time
 
 
 logger = get_logger(__name__)
@@ -38,28 +39,6 @@ class KrakenFeedHandler(FeedHandler):
                 if response.get("type") in ["update", "snapshot"]:
                     self.process_update(response, is_snapshot)
 
-
-            """
-            if (
-                response.get("channel") == "ticker"
-                and response.get("type") == "update"
-                and "data" in response
-            ):
-                data = response["data"][0]
-                assert (
-                    data["symbol"] == f"{self.ccy_1}/{self.ccy_2}"
-                ), f"response[data][symbol] = {data['symbol']} which does not match self.ccy_1/self.ccy_2 = {self.ccy_1}/{self.ccy_2}"
-                # Note: Kraken's API isn't great in that it doesn't provide a timestamp for the update. This means we could have inacurate timestamps if the program starts lagging...
-                self.order_book.set_bid_ask(
-                    data["bid"],
-                    data["bid_qty"],
-                    data["ask"],
-                    data["ask_qty"],
-                    datetime.utcnow(),
-                )
-            else:
-                logger.debug(f"Received non data message: {response}")
-            """
 
         except Exception as e:
             logger.exception(f"Error processing message: {e}")
@@ -105,22 +84,24 @@ class KrakenFeedHandler(FeedHandler):
 
         def run_fh_ws():
             # Initialize the WebSocket
-            try:
-                # websocket.enableTrace(True)
-                ws = websocket.WebSocketApp(
-                    ws_url,
-                    on_open=self.on_open,
-                    on_message=self.on_message,
-                    on_error=self.on_error,
-                    on_close=self.on_close,
-                )
-                # Run the WebSocket
-                logger.debug("starting ws.run_forever() now...")
-                ws.run_forever()
-            except Exception as e:
-                logger.exception(f"Exception occurred: {e}")
-                if ws:
-                    ws.close()
+            while True:
+                try:
+                    # websocket.enableTrace(True)
+                    ws = websocket.WebSocketApp(
+                        ws_url,
+                        on_open=self.on_open,
+                        on_message=self.on_message,
+                        on_error=self.on_error,
+                        on_close=self.on_close,
+                    )
+                    # Run the WebSocket
+                    logger.debug("starting ws.run_forever() now...")
+                    ws.run_forever()
+                except Exception as e:
+                    logger.exception(f"Exception occurred: {e}")
+                    if ws:
+                        ws.close()
+                time.sleep(5)
 
         fh_ws_thread = threading.Thread(target=run_fh_ws)
         logger.debug(f"Starting FH WS thread now... (FH: {self})")
