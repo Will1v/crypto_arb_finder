@@ -76,3 +76,10 @@ Full order book actually looks similar. Couple of observations:
 - Grafana seems to be locking the DB a lot when pulling data to plot the charts
 - It's also extremely slow (half a minute for each plot over 15 minutes sliding windows)
 - New retry mechanism helps with the data loss but the dashboard performance is terrible. Will need to look into migrating to Postgresql
+
+
+## Some results
+
+At first glance, it would look like there's quite a bit of arbitrage opportunities - at least on the first limit, which is what is displayed here. This doesn't factor in any trading fees to trade on each exchange, or gas fees to rebalance from one exchange to another.
+
+![image](https://github.com/user-attachments/assets/8af95b92-4dce-484d-9937-3ec5b935fbc7)
