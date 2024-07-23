@@ -3,12 +3,12 @@ from dotenv import load_dotenv
 import yaml
 from typing import Any, Dict
 
+base_dir = os.path.dirname(os.path.abspath(__file__))
+dotenv_path = os.path.join(base_dir, 'config', 'secrets.env')
 
 class Secrets:
     def __init__(self):
         # Load environment variables from the .env file
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        dotenv_path = os.path.join(base_dir, 'config', 'secrets.env')
         load_dotenv(dotenv_path)
         self.cryptocompare_api_key = os.getenv("CRYPTOCOMPARE_API_KEY")
         self.coinbase_api_key = os.getenv("COINBASE_API_KEY")
