@@ -27,6 +27,11 @@ class OrderBook(threading.Thread):
         self.db_queue = queue.Queue()
         self._max_db_inserts_attempts = 3
 
+    
+    def reset(self):
+        logger.warning(f"Resetting order book: {self}")
+        self.__init__(self._ccy_1, self._ccy_2, self.exchange)
+
     def init_and_start_threads(self):
         # Multithreading management
         self.lock = threading.Lock()
@@ -136,6 +141,7 @@ class BestBidOfferOrderBook(OrderBook):
         self._best_ask_q = None
         self.snapshot_complete = False
         self.init_and_start_threads()
+
 
     def set_bid_ask(self, bid: float, bid_q: float, ask: float, ask_q: float, event_time: datetime):
         self._best_bid = bid
