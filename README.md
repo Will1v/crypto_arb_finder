@@ -80,6 +80,6 @@ Full order book actually looks similar. Couple of observations:
 
 ## Some results
 
-At first glance, it would look like there's quite a bit of arbitrage opportunities - at least on the first limit, which is what is displayed here. This doesn't factor in any trading fees to trade on each exchange, or gas fees to rebalance from one exchange to another.
+At first glance, there are non negligeable discrepencies between Coinbase and Kraken on BTC and ETH - at least on the first limit, which is what is displayed here - but not enough once you factor in trading fees. 
 
 ![image](https://github.com/user-attachments/assets/8af95b92-4dce-484d-9937-3ec5b935fbc7)
