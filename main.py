@@ -1,10 +1,6 @@
-import os, sys, time
 from dotenv import load_dotenv
-import yaml
-from config import config
 from logger import get_logger
 from feed_handlers import KrakenFeedHandler, CoinbaseFeedHandler
-from web_gui.app import start_web_gui
 from database import db_helper
 
 logger = get_logger(__name__)
@@ -13,12 +9,31 @@ logger = get_logger(__name__)
 def main():
     logger.info("Starting Crypto Arb Opportunities Finder")
 
-    # TODO: rework this
+    coins = ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'USDC', 'DOGE', 'TON', 'ADA']
+    exchanges = {'Coinbase': CoinbaseFeedHandler, 'Kraken': KrakenFeedHandler}
+
+    init_coins_query = f"""
+        INSERT INTO currencies (currency)
+        VALUES
+            ('{"'), ('".join([c for c in coins])}')
+        ON CONFLICT (currency) DO NOTHING;
+    """
+
+    init_exchanges_query = f"""
+        INSERT INTO exchanges (exchange)
+        VALUES
+            ('{"'), ('".join([e for e in exchanges.keys()])}')
+        ON CONFLICT (exchange) DO NOTHING;
+    """
+
+    db_helper.execute(init_coins_query)
+    db_helper.execute(init_exchanges_query)
+
     feed_handlers = []
-    feed_handlers.append(CoinbaseFeedHandler("BTC", "USD"))
-    feed_handlers.append(KrakenFeedHandler("BTC", "USD"))
-    feed_handlers.append(CoinbaseFeedHandler("ETH", "USD"))
-    feed_handlers.append(KrakenFeedHandler("ETH", "USD"))
+    for coin in coins:
+        for fh in exchanges.values():
+            feed_handlers.append(fh(coin, "USD"))
+            feed_handlers.append(fh(coin, "USD"))
     try:
         for feed_handler in feed_handlers:
             feed_handler.start_fh()

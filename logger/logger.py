@@ -11,7 +11,7 @@ def configure_logger():
 
     # TimedRotatingFileHandler to rotates logs every hour
     log_file_handler = TimedRotatingFileHandler(
-        os.path.expanduser(config.logger.logs_path) + "crypto_arb_finder.log",
+        f"{os.path.expanduser(config.logger.logs_path)}crypto_arb_finder-{os.getpid()}.log",
         when="H",  # Rotate logs every hour
         interval=1,  # The interval to rotate logs
         # backupCount=24  # Number of backup files to keep

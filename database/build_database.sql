@@ -10,6 +10,16 @@ CREATE TABLE IF NOT EXISTS order_book (
     exchange TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS exchanges (
+    exchange_id SERIAL PRIMARY KEY,
+    exchange VARCHAR(255) NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS currencies (
+    currency_id SERIAL PRIMARY KEY,
+    currency VARCHAR(255) NOT NULL UNIQUE
+);
+
 
 /* TODO: change to this:
 

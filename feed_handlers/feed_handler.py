@@ -47,6 +47,7 @@ class FeedHandler(ABC):
         ws_url = self.feed_uri
 
         def run_fh_ws():
+            logger.debug(f"Now {threading.active_count()} active threads")
             # Initialize the WebSocket
             while True:
                 try:
