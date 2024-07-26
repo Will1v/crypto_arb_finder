@@ -1,7 +1,7 @@
 database:
   db_name: arb_finder
   db_user: arb_finder
-  db_host: localhost
+  db_host: 192.168.1.103
   db_port: 5432
   build_sql_file_path: "~/crypto_arb_finder/database/build_database.sql"
 
@@ -17,3 +17,5 @@ order_book:
 logger:
   logs_path: "~/crypto_arb_finder/logs/"
 
+web_gui:
+  time_horizon_in_hours: 4
