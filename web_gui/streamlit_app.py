@@ -19,7 +19,6 @@ logger = get_logger(__name__)
 page_load_start = time.time()
 
 time_horizon = config.web_gui.time_horizon_in_hours
-time_horizon = 2
 logger.debug(f"Time horizon: {time_horizon} hours")
 
 start = time.time()
@@ -39,7 +38,7 @@ currency_2 = 'USD'
 
 taking_fees = {}
 default_taking_fees = {
-     'Coinbase': 0.40,
+     'Coinbase': 0.60,
      'Kraken': 0.40
 }
 for exchange in exchanges:
