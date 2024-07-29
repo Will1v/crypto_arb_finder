@@ -9,7 +9,7 @@ logger = get_logger(__name__)
 def main():
     logger.info("Starting Crypto Arb Opportunities Finder")
 
-    coins = ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'USDC', 'DOGE', 'TON', 'ADA']
+    coins = ['BTC', 'ETH', 'SOL', 'XRP', 'TON', 'ADA']
     exchanges = {'Coinbase': CoinbaseFeedHandler, 'Kraken': KrakenFeedHandler}
 
     init_coins_query = f"""
