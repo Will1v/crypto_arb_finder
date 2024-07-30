@@ -2,7 +2,7 @@
 
 - [x] Preliminary work
    - [x] Decide on crypto API:  <a href="https://min-api.cryptocompare.com/" target="_blank">Crypto Compare</a>
-   - [x] Decide on database: sqlite3
+   - [x] Decide on database: PostgreSQL
 - [X] Feed handler
    - [x] Store market data to DB
       - [x] For one exchange
@@ -102,15 +102,62 @@ Full order book actually looks similar. Couple of observations:
 - Setting all fees to 0 shows the raw discrepancies between the exchanges (here on BTC):
 ![image](https://github.com/user-attachments/assets/1a0a9254-5e7b-4413-84fb-a9371363dec8)
 
-
-
-
-_NB: gaps in the charts are due to the feed handlers having been restarted a few minutes before I took the screenshots_
-
 ## Database issues
 
 ### Using Sqlite3
 - Grafana seems to be locking the DB a lot when pulling data to plot the charts
 - It's also extremely slow (half a minute for each plot over 15 minutes sliding windows)
-- New retry mechanism helps with the data loss but the dashboard performance is terrible. Have migrated to Postgresql
+- New retry mechanism helps with the data loss but the dashboard performance is terrible. **Have migrated to Postgresql**
 
+## Performance considerations
+
+The sheer amount of data pulled makes the dashboard very slow. I've had to:
+- Reduce the timeframe of data pulled into the Pandas dataframes
+- Resample the data to one data point per second
+
+For context, over the past 24h (quiet markets), the average count of updates varied from 8 to 30 per second:
+``` sql
+SELECT
+	exchange,
+	currency_1,
+	ROUND(AVG(count)) as average_count
+FROM
+(
+	SELECT 
+		exchange, 
+		currency_1, 
+		date_trunc('second', timestamp) AS second, 
+		COUNT(*) AS count
+	FROM 
+		order_book
+	WHERE 
+		timestamp >= NOW() - INTERVAL '24 hours'
+	GROUP BY 
+		exchange, 
+		currency_1, 
+		second
+) AS count_per_second
+GROUP BY
+	count_per_second.exchange,
+	count_per_second.currency_1
+ORDER BY
+	3, 2, 1;
+ exchange | currency_1 | average_count
+----------+------------+---------------
+ Coinbase | ADA        |             8
+ Kraken   | ETH        |             8
+ Kraken   | SOL        |             8
+ Kraken   | BTC        |             9
+ Coinbase | XRP        |             9
+ Kraken   | ADA        |            11
+ Coinbase | SOL        |            11
+ Kraken   | XRP        |            17
+ Coinbase | ETH        |            28
+ Coinbase | BTC        |            30
+(10 rows)
+```
+
+
+This version is focused on exploring/back testing and storing data. 
+
+For a live trading implementation, having the database intermediate wouldn't be suitable. I would need to compare the live order books in memory, perhaps using something like Redis, and react to signals on the fly.
