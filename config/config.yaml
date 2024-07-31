@@ -1,7 +1,7 @@
 database:
   db_name: arb_finder
   db_user: arb_finder
-  db_host: 192.168.1.103
+  db_host: localhost
   db_port: 5432
   build_sql_file_path: "~/crypto_arb_finder/database/build_database.sql"
 
